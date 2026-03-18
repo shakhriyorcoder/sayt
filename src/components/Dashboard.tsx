@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Bell, 
@@ -11,6 +11,10 @@ import {
   BookOpen,
   Languages,
   Lightbulb,
+  Mic, 
+  Image as ImageIcon,
+  Type,
+  Send,
   X,
   Crown,
   Check,
@@ -27,14 +31,31 @@ interface DashboardProps {
   setIsPremium: (premium: boolean) => void;
   onNavigate: (tab: string, category?: string, openBookId?: string) => void;
   onAdminTrigger: () => void;
+  onOpenPremium: () => void;
+  lastReadBook?: { id: string; title: string; progress: number; author: string };
+  books?: any[];
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ userName, userAvatar, isPremium, setIsPremium, onNavigate, onAdminTrigger }) => {
-  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+export const Dashboard: React.FC<DashboardProps> = ({ 
+  userName, 
+  userAvatar, 
+  isPremium, 
+  setIsPremium, 
+  onNavigate, 
+  onAdminTrigger, 
+  onOpenPremium,
+  lastReadBook,
+  books = []
+}) => {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [isAllTasksOpen, setIsAllTasksOpen] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<{ id: number; title: string; time: string; done: boolean; description: string; exercises?: string[] } | null>(null);
+  const [selectedTask, setSelectedTask] = useState<any>(null);
+  const [submissionType, setSubmissionType] = useState<'text' | 'image' | 'voice' | null>(null);
+  const [textSubmission, setTextSubmission] = useState('');
+  const [imageSubmission, setImageSubmission] = useState<string | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [stars, setStars] = useState(124);
   const [streak, setStreak] = useState(5);
 
@@ -58,42 +79,52 @@ export const Dashboard: React.FC<DashboardProps> = ({ userName, userAvatar, isPr
     { id: 5, name: 'Laylo', xp: 800, level: 3, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Laylo' },
   ];
 
-  const [tasks, setTasks] = useState([
-    { 
-      id: 1,
-      title: 'Matematika: 12-mavzu', 
-      time: '14:00', 
-      done: true, 
-      description: '12-mavzudagi misollarni yechish va tekshirish.',
-      exercises: ['5 + 5 = ?', '10 - 3 = ?', '2 * 4 = ?']
-    },
-    { 
-      id: 2,
-      title: 'Ingliz tili: Lug\'at', 
-      time: '16:30', 
-      done: false, 
-      description: 'Yangi 10 ta so\'zni yodlash va talaffuzini mashq qilish.',
-      exercises: ['Apple - Olma', 'Book - Kitob', 'Sun - Quyosh']
-    },
-    { 
-      id: 3,
-      title: 'Ertak o\'qish', 
-      time: '18:00', 
-      done: false, 
-      description: '"Zumrad va Qimmat" ertagini oxirigacha o\'qish.',
-      exercises: ['Ertak qahramonlarini sanab bering', 'Ertak mazmunini so\'zlab bering']
-    },
-    { 
-      id: 4,
-      title: 'Rasm chizish', 
-      time: '19:30', 
-      done: false, 
-      description: 'Tabiat manzarasi rasmini chizish.',
-      exercises: ['Daraxt chizish', 'Quyosh chizish', 'Uy chizish']
-    },
-  ]);
+  const [tasks, setTasks] = useState<any[]>([]);
 
-  const handleCompleteTask = (taskId: number) => {
+  useEffect(() => {
+    const initialTasks = [
+      { 
+        id: 1,
+        title: 'Matematika: 12-mavzu', 
+        time: '14:00', 
+        done: true, 
+        description: '12-mavzudagi misollarni yechish va tekshirish.',
+        exercises: ['5 + 5 = ?', '10 - 3 = ?', '2 * 4 = ?']
+      },
+      { 
+        id: 2,
+        title: 'Ingliz tili: Lug\'at', 
+        time: '16:30', 
+        done: false, 
+        description: 'Yangi 10 ta so\'zni yodlash va talaffuzini mashq qilish.',
+        exercises: ['Apple - Olma', 'Book - Kitob', 'Sun - Quyosh']
+      }
+    ];
+
+    // Add tasks from books
+    const bookTasks = books.filter(b => b.task).map(b => ({
+      id: `book-task-${b.id}`,
+      title: `${b.title}: Vazifa`,
+      time: 'Ixtiyoriy',
+      done: false,
+      description: b.task,
+      bookId: b.id
+    }));
+
+    // Add homework tasks from books
+    const homeworkTasks = books.flatMap(b => (b.homework || []).map((h: any) => ({
+      id: `hw-task-${h.id}`,
+      title: `${b.title}: ${h.title}`,
+      time: 'Ixtiyoriy',
+      done: false,
+      description: h.description,
+      bookId: b.id
+    })));
+
+    setTasks([...initialTasks, ...bookTasks, ...homeworkTasks]);
+  }, [books]);
+
+  const handleCompleteTask = (taskId: any) => {
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, done: true } : t));
     setStars(prev => prev + 10);
     confetti({
@@ -233,19 +264,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ userName, userAvatar, isPr
           <motion.button 
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            onClick={() => onNavigate('library', 'Ilmiy', '1')}
+            onClick={() => onNavigate('library', 'Barchasi', lastReadBook?.id || '1')}
             className="w-full bg-white rounded-[32px] p-4 flex items-center gap-4 shadow-sm border border-slate-100 transition-all"
           >
             <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center flex-shrink-0">
               <BookOpen className="w-8 h-8 text-blue-500" />
             </div>
             <div className="flex-1 text-left">
-              <h4 className="font-bold text-slate-800 mb-1 text-sm">Alisher Navoiy: Hayoti...</h4>
+              <h4 className="font-bold text-slate-800 mb-1 text-sm">{lastReadBook?.title || "Alisher Navoiy: Hayoti..."}</h4>
               <div className="flex items-center gap-2 mb-2">
                 <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-blue-500 w-[80%]" />
+                  <div className="h-full bg-blue-500" style={{ width: `${lastReadBook?.progress || 80}%` }} />
                 </div>
-                <span className="text-[10px] font-bold text-slate-400">80%</span>
+                <span className="text-[10px] font-bold text-slate-400">{lastReadBook?.progress || 80}%</span>
               </div>
               <p className="text-[10px] text-slate-400 font-medium">Oxirgi marta: 2 soat oldin</p>
             </div>
@@ -290,7 +321,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ userName, userAvatar, isPr
               <motion.div 
                 key={i} 
                 whileTap={{ scale: 0.98 }}
-                onClick={() => setSelectedTask(task)}
+                onClick={() => {
+                  if (task.bookId) {
+                    onNavigate('library', 'Barchasi', task.bookId);
+                  } else {
+                    setSelectedTask(task);
+                  }
+                }}
                 className="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-2xl transition-colors cursor-pointer"
               >
                 <div className={cn(
@@ -336,7 +373,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ userName, userAvatar, isPr
               <h3 className="text-xl font-black mb-1">Premium obuna</h3>
               <p className="text-amber-50 text-xs mb-4">Barcha kitoblardan cheksiz foydalaning</p>
               <button 
-                onClick={() => setIsPaymentOpen(true)}
+                onClick={onOpenPremium}
                 className="bg-white text-[#FFA000] px-6 py-2 rounded-full text-sm font-bold shadow-md active:scale-95 transition-transform"
               >
                 Sotib olish
@@ -407,38 +444,150 @@ export const Dashboard: React.FC<DashboardProps> = ({ userName, userAvatar, isPr
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setSelectedTask(null)}
+              onClick={() => {
+                setSelectedTask(null);
+                setSubmissionType(null);
+                setTextSubmission('');
+                setImageSubmission(null);
+                setIsRecording(false);
+              }}
               className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             />
             <motion.div
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative w-full max-w-sm bg-white rounded-[40px] p-8 shadow-2xl overflow-hidden text-center"
+              className="relative w-full max-w-sm bg-white rounded-[40px] p-8 shadow-2xl overflow-hidden"
             >
-              <div className="w-20 h-20 bg-blue-50 rounded-[30px] flex items-center justify-center mx-auto mb-6">
-                <CheckCircle2 className="w-10 h-10 text-blue-500" />
+              <div className="flex items-center justify-between mb-6">
+                <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center">
+                  <CheckCircle2 className="w-6 h-6 text-blue-500" />
+                </div>
+                <button 
+                  onClick={() => {
+                    setSelectedTask(null);
+                    setSubmissionType(null);
+                    setTextSubmission('');
+                    setImageSubmission(null);
+                    setIsRecording(false);
+                  }}
+                  className="p-2 hover:bg-slate-100 rounded-full"
+                >
+                  <X className="w-5 h-5 text-slate-400" />
+                </button>
               </div>
+
               <h3 className="text-xl font-display font-bold text-slate-800 mb-2">{selectedTask.title}</h3>
               <p className="text-slate-500 text-sm mb-6 leading-relaxed">
                 {selectedTask.description}
               </p>
 
-              {selectedTask.exercises && (
-                <div className="mb-8 text-left space-y-3">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Mashqlar / Testlar</p>
-                  {selectedTask.exercises.map((ex, i) => (
-                    <div key={i} className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-sm text-slate-700 font-medium flex items-center gap-3">
-                      <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center text-[10px] text-blue-600 font-bold">{i + 1}</div>
-                      {ex}
-                    </div>
-                  ))}
+              {!selectedTask.done && (
+                <div className="space-y-6 mb-8">
+                  <div className="flex items-center justify-center gap-4">
+                    <button 
+                      onClick={() => setSubmissionType('text')}
+                      className={cn(
+                        "w-12 h-12 rounded-2xl flex items-center justify-center transition-all",
+                        submissionType === 'text' ? "bg-brand-blue text-white shadow-lg shadow-blue-500/30" : "bg-slate-100 text-slate-400"
+                      )}
+                    >
+                      <Type className="w-5 h-5" />
+                    </button>
+                    <button 
+                      onClick={() => setSubmissionType('image')}
+                      className={cn(
+                        "w-12 h-12 rounded-2xl flex items-center justify-center transition-all",
+                        submissionType === 'image' ? "bg-brand-blue text-white shadow-lg shadow-blue-500/30" : "bg-slate-100 text-slate-400"
+                      )}
+                    >
+                      <ImageIcon className="w-5 h-5" />
+                    </button>
+                    <button 
+                      onClick={() => setSubmissionType('voice')}
+                      className={cn(
+                        "w-12 h-12 rounded-2xl flex items-center justify-center transition-all",
+                        submissionType === 'voice' ? "bg-brand-blue text-white shadow-lg shadow-blue-500/30" : "bg-slate-100 text-slate-400"
+                      )}
+                    >
+                      <Mic className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {submissionType === 'text' && (
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                      <textarea 
+                        value={textSubmission}
+                        onChange={(e) => setTextSubmission(e.target.value)}
+                        placeholder="Javobingizni yozing..."
+                        className="w-full p-4 rounded-2xl bg-slate-50 border border-slate-100 outline-none h-24 resize-none text-sm"
+                      />
+                    </motion.div>
+                  )}
+
+                  {submissionType === 'image' && (
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
+                      <input 
+                        type="file" 
+                        ref={fileInputRef}
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onloadend = () => setImageSubmission(reader.result as string);
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                      {imageSubmission ? (
+                        <div className="relative aspect-video rounded-2xl overflow-hidden border-2 border-brand-blue">
+                          <img src={imageSubmission} alt="Submission" className="w-full h-full object-cover" />
+                          <button onClick={() => setImageSubmission(null)} className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button 
+                          onClick={() => fileInputRef.current?.click()}
+                          className="w-full aspect-video rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 hover:bg-slate-50 transition-all"
+                        >
+                          <ImageIcon className="w-8 h-8 text-slate-300" />
+                          <span className="text-slate-400 text-xs font-bold">Rasm tanlash</span>
+                        </button>
+                      )}
+                    </motion.div>
+                  )}
+
+                  {submissionType === 'voice' && (
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center gap-4 py-4">
+                      <button 
+                        onClick={() => setIsRecording(!isRecording)}
+                        className={cn(
+                          "w-16 h-16 rounded-full flex items-center justify-center transition-all",
+                          isRecording ? "bg-red-500 text-white animate-pulse" : "bg-slate-100 text-slate-400"
+                        )}
+                      >
+                        <Mic className="w-8 h-8" />
+                      </button>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                        {isRecording ? "Yozilmoqda..." : "Yozish uchun bosing"}
+                      </p>
+                    </motion.div>
+                  )}
                 </div>
               )}
 
               <div className="flex gap-3">
                 <button 
-                  onClick={() => setSelectedTask(null)}
+                  onClick={() => {
+                    setSelectedTask(null);
+                    setSubmissionType(null);
+                    setTextSubmission('');
+                    setImageSubmission(null);
+                    setIsRecording(false);
+                  }}
                   className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold text-sm"
                 >
                   Yopish
@@ -447,13 +596,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ userName, userAvatar, isPr
                   <motion.button 
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    initial={{ y: 20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    onClick={() => handleCompleteTask(selectedTask.id)}
-                    className="flex-1 py-4 bg-green-500 text-white rounded-2xl font-bold text-sm shadow-lg shadow-green-500/30 flex items-center justify-center gap-2"
+                    onClick={() => {
+                      handleCompleteTask(selectedTask.id);
+                      setSubmissionType(null);
+                      setTextSubmission('');
+                      setImageSubmission(null);
+                      setIsRecording(false);
+                    }}
+                    className="flex-1 py-4 bg-brand-blue text-white rounded-2xl font-bold text-sm shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2"
                   >
-                    <Check className="w-5 h-5" strokeWidth={3} />
-                    Bajardim
+                    <Send className="w-5 h-5" />
+                    Yuborish
                   </motion.button>
                 )}
               </div>
@@ -555,12 +708,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ userName, userAvatar, isPr
           </div>
         )}
       </AnimatePresence>
-
-      <PaymentModal 
-        isOpen={isPaymentOpen} 
-        onClose={() => setIsPaymentOpen(false)} 
-        onSuccess={() => setIsPremium(true)}
-      />
     </div>
   );
 };

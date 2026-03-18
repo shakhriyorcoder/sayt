@@ -18,6 +18,26 @@ export type QuizQuestion = {
   correctAnswer: number;
 };
 
+export type HomeworkTask = {
+  id: string;
+  title: string;
+  description: string;
+};
+
+export type HomeworkSubmission = {
+  id: string;
+  bookId: string;
+  bookTitle: string;
+  taskId: string;
+  taskTitle: string;
+  userName: string;
+  photoUrl: string;
+  submittedAt: string;
+  status: 'pending' | 'reviewed';
+  feedback?: string;
+  grade?: number;
+};
+
 export type Book = {
   id: string;
   title: string;
@@ -31,6 +51,7 @@ export type Book = {
   progress?: number;
   quiz?: QuizQuestion[];
   task?: string;
+  homework?: HomeworkTask[];
 };
 
 export type User = {

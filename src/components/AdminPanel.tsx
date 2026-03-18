@@ -18,15 +18,22 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
-import { Book } from '@/src/types';
+import { Book, HomeworkSubmission, HomeworkTask } from '@/src/types';
 
 interface AdminPanelProps {
   onClose: () => void;
   onAddBook: (book: Book) => void;
+  submissions: HomeworkSubmission[];
+  onReviewSubmission: (id: string, feedback: string, grade: number) => void;
 }
 
-export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onAddBook }) => {
-  const [activeTab, setActiveTab] = useState<'books' | 'users' | 'stats'>('books');
+export const AdminPanel: React.FC<AdminPanelProps> = ({ 
+  onClose, 
+  onAddBook, 
+  submissions,
+  onReviewSubmission 
+}) => {
+  const [activeTab, setActiveTab] = useState<'books' | 'users' | 'stats' | 'submissions'>('books');
   const [newBook, setNewBook] = useState<Partial<Book>>({
     title: '',
     author: '',
@@ -38,8 +45,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onAddBook }) =>
     pdfUrl: '',
     audioUrl: '',
     task: '',
-    quiz: []
+    quiz: [],
+    homework: []
   });
+
+  const [hwTask, setHwTask] = useState({ title: '', description: '' });
+  const [reviewData, setReviewData] = useState<{ id: string, feedback: string, grade: number } | null>(null);
 
   const [uploading, setUploading] = useState<{ [key: string]: boolean }>({});
 
@@ -80,6 +91,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onAddBook }) =>
     }
   };
 
+  const handleAddHomeworkTask = () => {
+    if (hwTask.title && hwTask.description) {
+      setNewBook(prev => ({
+        ...prev,
+        homework: [...(prev.homework || []), { ...hwTask, id: Math.random().toString(36).substr(2, 9) }]
+      }));
+      setHwTask({ title: '', description: '' });
+    }
+  };
+
   const handleSaveBook = () => {
     if (newBook.title && (newBook.pdfUrl || newBook.cover)) {
       onAddBook({
@@ -114,9 +135,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onAddBook }) =>
       </div>
 
       {/* Tabs */}
-      <div className="flex bg-white px-6 border-b border-slate-100">
+      <div className="flex bg-white px-6 border-b border-slate-100 overflow-x-auto no-scrollbar">
         {[
           { id: 'books', label: 'Kitoblar', icon: BookOpen },
+          { id: 'submissions', label: 'Vazifalar', icon: ClipboardCheck },
           { id: 'users', label: 'Foydalanuvchilar', icon: Users },
           { id: 'stats', label: 'Statistika', icon: LayoutDashboard },
         ].map((tab) => (
@@ -320,6 +342,64 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onAddBook }) =>
               </div>
             </section>
 
+            <section className="space-y-4 p-6 bg-orange-50 rounded-[32px] border-2 border-dashed border-orange-200">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <Plus className="w-5 h-5 text-brand-orange" /> Uy vazifasi qo'shish
+              </h3>
+              
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Vazifa nomi</label>
+                  <input 
+                    type="text" 
+                    value={hwTask.title}
+                    onChange={e => setHwTask({...hwTask, title: e.target.value})}
+                    placeholder="Masalan: Rasm chizish"
+                    className="w-full p-4 rounded-2xl bg-white border border-slate-200 outline-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Vazifa tavsifi</label>
+                  <textarea 
+                    value={hwTask.description}
+                    onChange={e => setHwTask({...hwTask, description: e.target.value})}
+                    placeholder="Vazifani batafsil tushuntiring..."
+                    className="w-full p-4 rounded-2xl bg-white border border-slate-200 outline-none h-20 resize-none"
+                  />
+                </div>
+                <button 
+                  onClick={handleAddHomeworkTask}
+                  className="w-full py-3 bg-white text-brand-orange border-2 border-brand-orange border-dashed rounded-2xl text-sm font-bold hover:bg-brand-orange hover:text-white transition-all"
+                >
+                  Vazifani qo'shish
+                </button>
+              </div>
+
+              {newBook.homework && newBook.homework.length > 0 && (
+                <div className="mt-6 space-y-2">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Qo'shilgan vazifalar ({newBook.homework.length})</p>
+                  {newBook.homework.map((h, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100">
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-slate-700">{h.title}</span>
+                        <span className="text-[10px] text-slate-400 truncate w-48">{h.description}</span>
+                      </div>
+                      <button 
+                        onClick={() => {
+                          const newHw = [...(newBook.homework || [])];
+                          newHw.splice(i, 1);
+                          setNewBook({...newBook, homework: newHw});
+                        }}
+                        className="p-1 text-red-400 hover:bg-red-50 rounded-lg"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
             <section className="space-y-4 p-6 bg-blue-50 rounded-[32px] border-2 border-dashed border-blue-200">
               <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                 <ClipboardCheck className="w-5 h-5 text-brand-blue" /> Test savollari qo'shish
@@ -399,6 +479,103 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onAddBook }) =>
             >
               <Save className="w-6 h-6" /> Kitobni saqlash
             </button>
+          </div>
+        ) : activeTab === 'submissions' ? (
+          <div className="max-w-2xl mx-auto space-y-6 pb-12">
+            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+              <ClipboardCheck className="w-5 h-5 text-brand-blue" /> Topshirilgan vazifalar
+            </h3>
+
+            {submissions.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+                <div className="w-20 h-20 bg-slate-100 rounded-[30px] flex items-center justify-center">
+                  <ClipboardCheck className="w-10 h-10 text-slate-300" />
+                </div>
+                <p className="text-slate-400 font-bold">Hozircha hech qanday vazifa topshirilmagan</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {submissions.map((sub) => (
+                  <div key={sub.id} className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500">
+                          {sub.userName[0]}
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-slate-800">{sub.userName}</h4>
+                          <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">{sub.submittedAt}</p>
+                        </div>
+                      </div>
+                      <div className={cn(
+                        "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest",
+                        sub.status === 'pending' ? "bg-orange-100 text-orange-600" : "bg-green-100 text-green-600"
+                      )}>
+                        {sub.status === 'pending' ? 'Kutilmoqda' : 'Tekshirildi'}
+                      </div>
+                    </div>
+
+                    <div className="p-4 bg-slate-50 rounded-2xl">
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Kitob va vazifa</p>
+                      <p className="text-sm font-bold text-slate-800">{sub.bookTitle}</p>
+                      <p className="text-xs text-slate-500">{sub.taskTitle}</p>
+                    </div>
+
+                    <div className="aspect-video rounded-2xl overflow-hidden bg-slate-200 border border-slate-100">
+                      <img src={sub.photoUrl} alt="Vazifa" className="w-full h-full object-cover" />
+                    </div>
+
+                    {sub.status === 'pending' ? (
+                      <div className="space-y-4 pt-2">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Feedback (Fikr-mulohaza)</label>
+                          <textarea 
+                            placeholder="Vazifa haqida fikringiz..."
+                            className="w-full p-4 rounded-2xl bg-slate-50 border border-slate-100 outline-none text-sm h-20 resize-none"
+                            onChange={(e) => setReviewData(prev => ({ ...prev!, id: sub.id, feedback: e.target.value, grade: prev?.grade || 5 }))}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Baho:</label>
+                            <select 
+                              className="bg-slate-50 border border-slate-100 rounded-lg px-2 py-1 text-sm font-bold"
+                              onChange={(e) => setReviewData(prev => ({ ...prev!, id: sub.id, grade: parseInt(e.target.value), feedback: prev?.feedback || '' }))}
+                            >
+                              <option value="5">5</option>
+                              <option value="4">4</option>
+                              <option value="3">3</option>
+                              <option value="2">2</option>
+                            </select>
+                          </div>
+                          <button 
+                            onClick={() => {
+                              if (reviewData?.id === sub.id) {
+                                onReviewSubmission(sub.id, reviewData.feedback, reviewData.grade);
+                                setReviewData(null);
+                              } else {
+                                alert('Iltimos feedback yozing!');
+                              }
+                            }}
+                            className="px-6 py-2 bg-brand-blue text-white rounded-xl text-xs font-bold shadow-lg shadow-blue-500/20 active:scale-95 transition-all"
+                          >
+                            Yuborish
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-4 bg-green-50 rounded-2xl border border-green-100">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-[10px] font-bold text-green-600 uppercase tracking-widest">Feedback yuborilgan</p>
+                          <span className="text-sm font-bold text-green-700">Baho: {sub.grade}</span>
+                        </div>
+                        <p className="text-sm text-green-800 italic">"{sub.feedback}"</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-center space-y-4">

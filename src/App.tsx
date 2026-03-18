@@ -7,7 +7,9 @@ import { Profile } from './components/Profile';
 import { BottomNav } from './components/BottomNav';
 import { AdminPanel } from './components/AdminPanel';
 import { SplashScreen } from './components/SplashScreen';
-import { Book } from './types';
+import { PaymentModal } from './components/PaymentModal';
+import { defaultBooks } from './constants';
+import { Book, HomeworkSubmission } from './types';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');
@@ -20,11 +22,24 @@ export default function App() {
   const [isPremium, setIsPremium] = useState(() => {
     return localStorage.getItem('isPremium') === 'true';
   });
+  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [initialLibraryCategory, setInitialLibraryCategory] = useState('Barchasi');
   const [bookToOpenId, setBookToOpenId] = useState<string | null>(null);
+  const [lastReadBook, setLastReadBook] = useState<{ id: string; title: string; progress: number; author: string } | null>(() => {
+    const saved = localStorage.getItem('lastReadBook');
+    return saved ? JSON.parse(saved) : null;
+  });
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [customBooks, setCustomBooks] = useState<Book[]>([]);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [submissions, setSubmissions] = useState<HomeworkSubmission[]>(() => {
+    const saved = localStorage.getItem('submissions');
+    return saved ? JSON.parse(saved) : [];
+  });
+  
+  useEffect(() => {
+    localStorage.setItem('submissions', JSON.stringify(submissions));
+  }, [submissions]);
   
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -74,6 +89,13 @@ export default function App() {
     
     if (openBookId) {
       setBookToOpenId(openBookId);
+      // Update last read book when navigating to a specific book
+      const book = [...customBooks, ...defaultBooks].find(b => b.id === openBookId);
+      if (book) {
+        const lastRead = { id: book.id, title: book.title, progress: book.progress, author: book.author };
+        setLastReadBook(lastRead);
+        localStorage.setItem('lastReadBook', JSON.stringify(lastRead));
+      }
     } else {
       setBookToOpenId(null);
     }
@@ -85,9 +107,34 @@ export default function App() {
     setCustomBooks(prev => [book, ...prev]);
   };
 
+  const handleAddSubmission = (submission: HomeworkSubmission) => {
+    setSubmissions(prev => [submission, ...prev]);
+  };
+
+  const handleReviewSubmission = (submissionId: string, feedback: string, grade: number) => {
+    setSubmissions(prev => prev.map(s => 
+      s.id === submissionId 
+        ? { ...s, status: 'reviewed', feedback, grade } 
+        : s
+    ));
+  };
+
   const renderContent = () => {
+    const allBooks = [...customBooks, ...defaultBooks];
     switch (activeTab) {
-      case 'home': return <Dashboard userName={userName} userAvatar={userAvatar} isPremium={isPremium} setIsPremium={setIsPremium} onNavigate={handleNavigate} onAdminTrigger={handleAdminTrigger} />;
+      case 'home': return (
+        <Dashboard 
+          userName={userName} 
+          userAvatar={userAvatar} 
+          isPremium={isPremium} 
+          setIsPremium={setIsPremium} 
+          onNavigate={handleNavigate} 
+          onAdminTrigger={handleAdminTrigger} 
+          onOpenPremium={() => setIsPaymentOpen(true)}
+          lastReadBook={lastReadBook || undefined}
+          books={allBooks}
+        />
+      );
       case 'library': return (
         <Library 
           initialCategory={initialLibraryCategory} 
@@ -96,11 +143,11 @@ export default function App() {
           onBookOpened={() => setBookToOpenId(null)}
           isPremium={isPremium}
           onPremiumClick={() => {
-            setActiveTab('home');
-            // We can't easily trigger the modal from here without more state, 
-            // but the user will see the home screen where the banner was.
-            // Actually, let's just add a state to open it from anywhere.
+            setIsPaymentOpen(true);
           }}
+          userName={userName}
+          submissions={submissions}
+          onAddSubmission={handleAddSubmission}
         />
       );
       case 'tests': return <Tests />;
@@ -142,9 +189,17 @@ export default function App() {
           <AdminPanel 
             onClose={() => setIsAdminOpen(false)} 
             onAddBook={handleAddBook}
+            submissions={submissions}
+            onReviewSubmission={handleReviewSubmission}
           />
         )}
       </AnimatePresence>
+
+      <PaymentModal 
+        isOpen={isPaymentOpen} 
+        onClose={() => setIsPaymentOpen(false)} 
+        onSuccess={() => setIsPremium(true)}
+      />
     </div>
   );
 }

@@ -1,16 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Play, Pause, SkipBack, SkipForward, Volume2, Mic, ClipboardCheck, FileText, Image as ImageIcon } from 'lucide-react';
+import { X, Play, Pause, SkipBack, SkipForward, Volume2, Mic, ClipboardCheck, FileText, Image as ImageIcon, Check, Type, Send } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
-import { Book } from '@/src/types';
+import { Book, HomeworkSubmission, HomeworkTask } from '@/src/types';
 
 interface BookReaderProps {
   isOpen: boolean;
   onClose: () => void;
   book: Book | null;
+  userName?: string;
+  submissions?: HomeworkSubmission[];
+  onAddSubmission?: (submission: Omit<HomeworkSubmission, 'id' | 'submittedAt' | 'status'>) => void;
 }
 
-export const BookReader: React.FC<BookReaderProps> = ({ isOpen, onClose, book }) => {
+export const BookReader: React.FC<BookReaderProps> = ({ 
+  isOpen, 
+  onClose, 
+  book,
+  userName = 'Foydalanuvchi',
+  submissions = [],
+  onAddSubmission
+}) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(200);
@@ -20,15 +30,26 @@ export const BookReader: React.FC<BookReaderProps> = ({ isOpen, onClose, book })
   const [quizStep, setQuizStep] = useState(0);
   const [viewMode, setViewMode] = useState<'story' | 'pdf'>('story');
   const [showTask, setShowTask] = useState(false);
+  const [showHomework, setShowHomework] = useState(false);
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  const [selectedTask, setSelectedTask] = useState<HomeworkTask | null>(null);
+  const [submissionPhoto, setSubmissionPhoto] = useState<string | null>(null);
+  const [submissionType, setSubmissionType] = useState<'text' | 'image' | 'voice' | null>(null);
+  const [textSubmission, setTextSubmission] = useState('');
+  const [isRecording, setIsRecording] = useState(false);
   const audioRef = React.useRef<HTMLAudioElement>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  const quizQuestions = book?.quiz || [
+  const quizQuestions = (book?.quiz && book.quiz.length > 0) ? book.quiz : [
     { question: "Ertakdagi bola qanaqa edi?", options: ["Aqlli", "Yalqov", "Sho'x"], correctAnswer: 0 },
     { question: "U qayerda yashagan?", options: ["Shaxarda", "Qishloqda", "O'rmonda"], correctAnswer: 1 },
   ];
 
   useEffect(() => {
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setProgress(0);
+    
     if (book?.pdfUrl) {
       setViewMode('pdf');
       
@@ -64,9 +85,9 @@ export const BookReader: React.FC<BookReaderProps> = ({ isOpen, onClose, book })
 
   useEffect(() => {
     if (book?.audioUrl && audioRef.current) {
-      audioRef.current.src = book.audioUrl;
+      audioRef.current.load();
     }
-  }, [book]);
+  }, [book?.audioUrl]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -106,7 +127,13 @@ export const BookReader: React.FC<BookReaderProps> = ({ isOpen, onClose, book })
       if (isPlaying) {
         audioRef.current.pause();
       } else {
-        audioRef.current.play();
+        const playPromise = audioRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(error => {
+            console.error("Audio playback failed:", error);
+            setIsPlaying(false);
+          });
+        }
       }
     }
     setIsPlaying(!isPlaying);
@@ -135,6 +162,13 @@ export const BookReader: React.FC<BookReaderProps> = ({ isOpen, onClose, book })
             </div>
             <div className="flex gap-2">
               <button 
+                onClick={() => setShowHomework(true)}
+                className="w-10 h-10 bg-brand-blue rounded-xl flex items-center justify-center shadow-md"
+                title="Uy vazifasi"
+              >
+                <ClipboardCheck className="w-5 h-5 text-white" />
+              </button>
+              <button 
                 onClick={() => setShowTask(true)}
                 className="w-10 h-10 bg-brand-orange rounded-xl flex items-center justify-center shadow-md"
                 title="Vazifa"
@@ -146,10 +180,18 @@ export const BookReader: React.FC<BookReaderProps> = ({ isOpen, onClose, book })
                 className="w-10 h-10 bg-brand-yellow rounded-xl flex items-center justify-center shadow-md"
                 title="Test"
               >
-                <ClipboardCheck className="w-5 h-5 text-white" />
+                <FileText className="w-5 h-5 text-white" />
               </button>
             </div>
           </div>
+
+          <audio 
+            ref={audioRef}
+            src={book.audioUrl}
+            onTimeUpdate={handleAudioTimeUpdate}
+            onEnded={() => setIsPlaying(false)}
+            className="hidden"
+          />
 
           {/* Content Area */}
           <div className="flex-1 flex flex-col items-center justify-center relative overflow-hidden bg-slate-50">
@@ -178,34 +220,337 @@ export const BookReader: React.FC<BookReaderProps> = ({ isOpen, onClose, book })
             )}
 
             <AnimatePresence mode="wait">
-              {showTask ? (
+              {showHomework ? (
+                <motion.div 
+                  key="homework"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="w-full max-w-lg bg-white rounded-[40px] p-8 soft-shadow border border-slate-100 overflow-y-auto max-h-[80vh]"
+                >
+                  <div className="flex items-center justify-between mb-8">
+                    <h3 className="text-xl font-display font-bold text-slate-800">Uy vazifalari 📝</h3>
+                    <button onClick={() => {
+                      setShowHomework(false);
+                      setSelectedTask(null);
+                      setSubmissionPhoto(null);
+                    }} className="p-2 bg-slate-100 rounded-full">
+                      <X className="w-4 h-4 text-slate-500" />
+                    </button>
+                  </div>
+
+                  {!selectedTask ? (
+                    <div className="space-y-4">
+                      {(book.homework && book.homework.length > 0) || book.task ? (
+                        <>
+                          {book.task && (
+                            <motion.div 
+                              whileTap={{ scale: 0.98 }}
+                              onClick={() => setShowTask(true)}
+                              className="p-4 bg-orange-50 rounded-2xl border-2 border-orange-100 hover:border-brand-orange transition-all cursor-pointer"
+                            >
+                              <div className="flex items-center justify-between mb-2">
+                                <h4 className="font-bold text-slate-800">Asosiy vazifa</h4>
+                                <span className="text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider bg-orange-100 text-orange-600">
+                                  Ovozli
+                                </span>
+                              </div>
+                              <p className="text-slate-500 text-xs line-clamp-2">{book.task}</p>
+                            </motion.div>
+                          )}
+                          
+                          {book.homework?.map((task) => {
+                            const submission = submissions.find(s => s.bookId === book.id && s.taskId === task.id);
+                            return (
+                              <motion.div 
+                                key={task.id}
+                                whileTap={{ scale: 0.98 }}
+                                onClick={() => setSelectedTask(task)}
+                                className="p-4 bg-slate-50 rounded-2xl border-2 border-slate-100 hover:border-brand-blue transition-all cursor-pointer"
+                              >
+                                <div className="flex items-center justify-between mb-2">
+                                  <h4 className="font-bold text-slate-800">{task.title}</h4>
+                                  {submission && (
+                                    <span className={cn(
+                                      "text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider",
+                                      submission.status === 'pending' ? "bg-yellow-100 text-yellow-600" : "bg-green-100 text-green-600"
+                                    )}>
+                                      {submission.status === 'pending' ? "Kutilmoqda" : "Tekshirildi"}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-slate-500 text-xs line-clamp-2">{task.description}</p>
+                                {submission?.grade && (
+                                  <div className="mt-2 flex items-center gap-2">
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase">Baho:</span>
+                                    <span className="text-sm font-black text-brand-blue">{submission.grade}</span>
+                                  </div>
+                                )}
+                              </motion.div>
+                            );
+                          })}
+                        </>
+                      ) : (
+                        <div className="text-center py-12">
+                          <ClipboardCheck className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+                          <p className="text-slate-400 text-sm">Hozircha vazifalar yo'q</p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      <button 
+                        onClick={() => {
+                          setSelectedTask(null);
+                          setSubmissionPhoto(null);
+                        }}
+                        className="text-brand-blue text-xs font-bold uppercase tracking-widest flex items-center gap-2"
+                      >
+                        <SkipBack className="w-4 h-4" /> Orqaga
+                      </button>
+
+                      <div className="bg-brand-light-blue p-6 rounded-3xl">
+                        <h4 className="font-bold text-slate-800 mb-2">{selectedTask.title}</h4>
+                        <p className="text-slate-600 text-sm leading-relaxed">{selectedTask.description}</p>
+                      </div>
+
+                      {submissions.find(s => s.bookId === book.id && s.taskId === selectedTask.id) ? (
+                        <div className="space-y-4">
+                          <div className="p-4 bg-green-50 rounded-2xl border border-green-100">
+                            <p className="text-green-700 text-sm font-bold flex items-center gap-2">
+                              <Check className="w-4 h-4" /> Vazifa topshirilgan
+                            </p>
+                          </div>
+                          {submissions.find(s => s.bookId === book.id && s.taskId === selectedTask.id)?.feedback && (
+                            <div className="p-4 bg-white rounded-2xl border border-slate-200">
+                              <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">Admin javobi:</p>
+                              <p className="text-slate-700 text-sm italic">"{submissions.find(s => s.bookId === book.id && s.taskId === selectedTask.id)?.feedback}"</p>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          <p className="text-slate-800 font-bold text-sm">Vazifani rasmga olib yuklang:</p>
+                          
+                          <input 
+                            type="file" 
+                            ref={fileInputRef}
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  setSubmissionPhoto(reader.result as string);
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                          />
+
+                          {submissionPhoto ? (
+                            <div className="relative aspect-video rounded-2xl overflow-hidden border-2 border-brand-blue shadow-lg">
+                              <img src={submissionPhoto} alt="Submission" className="w-full h-full object-cover" />
+                              <button 
+                                onClick={() => setSubmissionPhoto(null)}
+                                className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <motion.button
+                              whileTap={{ scale: 0.98 }}
+                              onClick={() => fileInputRef.current?.click()}
+                              className="w-full aspect-video rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 hover:border-brand-blue hover:bg-slate-50 transition-all"
+                            >
+                              <ImageIcon className="w-8 h-8 text-slate-300" />
+                              <span className="text-slate-400 text-xs font-bold">Rasm tanlash</span>
+                            </motion.button>
+                          )}
+
+                          <button 
+                            disabled={!submissionPhoto}
+                            onClick={() => {
+                              if (onAddSubmission && submissionPhoto && selectedTask) {
+                                onAddSubmission({
+                                  bookId: book.id,
+                                  bookTitle: book.title,
+                                  taskId: selectedTask.id,
+                                  taskTitle: selectedTask.title,
+                                  studentName: userName,
+                                  photo: submissionPhoto
+                                });
+                                alert("Vazifa muvaffaqiyatli yuborildi!");
+                                setShowHomework(false);
+                                setSelectedTask(null);
+                                setSubmissionPhoto(null);
+                              }
+                            }}
+                            className={cn(
+                              "w-full py-4 rounded-2xl font-bold shadow-lg transition-all",
+                              submissionPhoto 
+                                ? "bg-brand-blue text-white shadow-blue-500/30" 
+                                : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                            )}
+                          >
+                            Topshirish
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </motion.div>
+              ) : showTask ? (
                 <motion.div 
                   key="task"
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.9 }}
-                  className="w-full max-w-xs bg-white rounded-[40px] p-8 soft-shadow border-4 border-brand-orange/20 text-center"
+                  className="w-full max-w-sm bg-white rounded-[40px] p-8 soft-shadow border border-slate-100"
                 >
-                  <div className="w-16 h-16 bg-orange-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                    <Mic className="w-8 h-8 text-brand-orange" />
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="w-12 h-12 bg-orange-100 rounded-2xl flex items-center justify-center">
+                      <Mic className="w-6 h-6 text-brand-orange" />
+                    </div>
+                    <button onClick={() => {
+                      setShowTask(false);
+                      setSubmissionType(null);
+                      setTextSubmission('');
+                      setSubmissionPhoto(null);
+                      setIsRecording(false);
+                    }} className="p-2 hover:bg-slate-100 rounded-full">
+                      <X className="w-5 h-5 text-slate-400" />
+                    </button>
                   </div>
+
                   <h3 className="text-xl font-display font-bold text-slate-800 mb-2">Kitob bo'yicha vazifa</h3>
                   <p className="text-slate-500 text-sm mb-8 leading-relaxed">{book.task || "Ushbu kitobni diqqat bilan o'qib chiqing."}</p>
-                  <button 
-                    onClick={() => {
-                      alert("Vazifa bajarildi! +50 XP");
-                      setShowTask(false);
-                    }}
-                    className="w-full py-4 bg-brand-orange text-white rounded-2xl font-bold shadow-lg shadow-orange-500/30"
-                  >
-                    Bajarish
-                  </button>
-                  <button 
-                    onClick={() => setShowTask(false)}
-                    className="mt-4 text-slate-400 text-xs font-bold uppercase tracking-widest"
-                  >
-                    Yopish
-                  </button>
+
+                  <div className="space-y-6 mb-8">
+                    <div className="flex items-center justify-center gap-4">
+                      <button 
+                        onClick={() => setSubmissionType('text')}
+                        className={cn(
+                          "w-12 h-12 rounded-2xl flex items-center justify-center transition-all",
+                          submissionType === 'text' ? "bg-brand-orange text-white shadow-lg shadow-orange-500/30" : "bg-slate-100 text-slate-400"
+                        )}
+                      >
+                        <Type className="w-5 h-5" />
+                      </button>
+                      <button 
+                        onClick={() => setSubmissionType('image')}
+                        className={cn(
+                          "w-12 h-12 rounded-2xl flex items-center justify-center transition-all",
+                          submissionType === 'image' ? "bg-brand-orange text-white shadow-lg shadow-orange-500/30" : "bg-slate-100 text-slate-400"
+                        )}
+                      >
+                        <ImageIcon className="w-5 h-5" />
+                      </button>
+                      <button 
+                        onClick={() => setSubmissionType('voice')}
+                        className={cn(
+                          "w-12 h-12 rounded-2xl flex items-center justify-center transition-all",
+                          submissionType === 'voice' ? "bg-brand-orange text-white shadow-lg shadow-orange-500/30" : "bg-slate-100 text-slate-400"
+                        )}
+                      >
+                        <Mic className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    {submissionType === 'text' && (
+                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                        <textarea 
+                          value={textSubmission}
+                          onChange={(e) => setTextSubmission(e.target.value)}
+                          placeholder="Javobingizni yozing..."
+                          className="w-full p-4 rounded-2xl bg-slate-50 border border-slate-100 outline-none h-24 resize-none text-sm"
+                        />
+                      </motion.div>
+                    )}
+
+                    {submissionType === 'image' && (
+                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
+                        <input 
+                          type="file" 
+                          ref={fileInputRef}
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onloadend = () => setSubmissionPhoto(reader.result as string);
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+                        {submissionPhoto ? (
+                          <div className="relative aspect-video rounded-2xl overflow-hidden border-2 border-brand-orange">
+                            <img src={submissionPhoto} alt="Submission" className="w-full h-full object-cover" />
+                            <button onClick={() => setSubmissionPhoto(null)} className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full">
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button 
+                            onClick={() => fileInputRef.current?.click()}
+                            className="w-full aspect-video rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 hover:bg-slate-50 transition-all"
+                          >
+                            <ImageIcon className="w-8 h-8 text-slate-300" />
+                            <span className="text-slate-400 text-xs font-bold">Rasm tanlash</span>
+                          </button>
+                        )}
+                      </motion.div>
+                    )}
+
+                    {submissionType === 'voice' && (
+                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center gap-4 py-4">
+                        <button 
+                          onClick={() => setIsRecording(!isRecording)}
+                          className={cn(
+                            "w-16 h-16 rounded-full flex items-center justify-center transition-all",
+                            isRecording ? "bg-red-500 text-white animate-pulse" : "bg-slate-100 text-slate-400"
+                          )}
+                        >
+                          <Mic className="w-8 h-8" />
+                        </button>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                          {isRecording ? "Yozilmoqda..." : "Yozish uchun bosing"}
+                        </p>
+                      </motion.div>
+                    )}
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button 
+                      onClick={() => {
+                        setShowTask(false);
+                        setSubmissionType(null);
+                        setTextSubmission('');
+                        setSubmissionPhoto(null);
+                        setIsRecording(false);
+                      }}
+                      className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold text-sm"
+                    >
+                      Yopish
+                    </button>
+                    <button 
+                      onClick={() => {
+                        alert("Vazifa muvaffaqiyatli yuborildi! +50 XP");
+                        setShowTask(false);
+                        setSubmissionType(null);
+                        setTextSubmission('');
+                        setSubmissionPhoto(null);
+                        setIsRecording(false);
+                      }}
+                      className="flex-1 py-4 bg-brand-orange text-white rounded-2xl font-bold text-sm shadow-lg shadow-orange-500/30 flex items-center justify-center gap-2"
+                    >
+                      <Send className="w-5 h-5" />
+                      Yuborish
+                    </button>
+                  </div>
                 </motion.div>
               ) : !showQuiz ? (
                 <motion.div 
@@ -271,43 +616,6 @@ export const BookReader: React.FC<BookReaderProps> = ({ isOpen, onClose, book })
                           </p>
                         </div>
                       </motion.div>
-
-                      {/* Audio Controls */}
-                      <div className="w-full space-y-6">
-                        <audio 
-                          ref={audioRef}
-                          onTimeUpdate={handleAudioTimeUpdate}
-                          onEnded={() => setIsPlaying(false)}
-                          className="hidden"
-                        />
-                        <div className="space-y-2">
-                          <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                            <motion.div 
-                              className="h-full bg-brand-blue"
-                              style={{ width: `${progress}%` }}
-                            />
-                          </div>
-                          <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase">
-                            <span>{formatTime(currentTime)}</span>
-                            <span>{formatTime(duration)}</span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-center gap-8">
-                          <button className="p-3 text-slate-400 hover:text-brand-blue transition-colors">
-                            <SkipBack className="w-6 h-6 fill-current" />
-                          </button>
-                          <button 
-                            onClick={togglePlay}
-                            className="w-20 h-20 bg-brand-blue rounded-[30px] flex items-center justify-center text-white shadow-xl shadow-brand-blue/30 hover:scale-105 active:scale-95 transition-all"
-                          >
-                            {isPlaying ? <Pause className="w-8 h-8 fill-white" /> : <Play className="w-8 h-8 fill-white ml-1" />}
-                          </button>
-                          <button className="p-3 text-slate-400 hover:text-brand-blue transition-colors">
-                            <SkipForward className="w-6 h-6 fill-current" />
-                          </button>
-                        </div>
-                      </div>
                     </>
                   )}
                 </motion.div>
@@ -328,11 +636,11 @@ export const BookReader: React.FC<BookReaderProps> = ({ isOpen, onClose, book })
 
                   <div className="mb-8">
                     <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-2">Savol {quizStep + 1} / {quizQuestions.length}</p>
-                    <p className="text-lg font-bold text-slate-800 leading-tight">{quizQuestions[quizStep].question}</p>
+                    <p className="text-lg font-bold text-slate-800 leading-tight">{quizQuestions[quizStep]?.question}</p>
                   </div>
 
                   <div className="space-y-3">
-                    {quizQuestions[quizStep].options.map((opt, idx) => (
+                    {quizQuestions[quizStep]?.options.map((opt, idx) => (
                       <button 
                         key={idx}
                         onClick={() => {
@@ -353,6 +661,39 @@ export const BookReader: React.FC<BookReaderProps> = ({ isOpen, onClose, book })
                 </motion.div>
               )}
             </AnimatePresence>
+
+            {/* Global Audio Controls */}
+            {!showQuiz && !showHomework && !showTask && book.audioUrl && (
+              <div className="w-full px-8 pb-8 space-y-4 bg-slate-50">
+                <div className="space-y-2">
+                  <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                    <motion.div 
+                      className="h-full bg-brand-blue"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase">
+                    <span>{formatTime(currentTime)}</span>
+                    <span>{formatTime(duration)}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-center gap-8">
+                  <button className="p-3 text-slate-400 hover:text-brand-blue transition-colors">
+                    <SkipBack className="w-6 h-6 fill-current" />
+                  </button>
+                  <button 
+                    onClick={togglePlay}
+                    className="w-16 h-16 bg-brand-blue rounded-[24px] flex items-center justify-center text-white shadow-xl shadow-brand-blue/30 hover:scale-105 active:scale-95 transition-all"
+                  >
+                    {isPlaying ? <Pause className="w-6 h-6 fill-white" /> : <Play className="w-6 h-6 fill-white ml-1" />}
+                  </button>
+                  <button className="p-3 text-slate-400 hover:text-brand-blue transition-colors">
+                    <SkipForward className="w-6 h-6 fill-current" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Footer Actions */}

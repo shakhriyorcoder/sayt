@@ -268,7 +268,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             className="w-full bg-white rounded-[32px] p-4 flex items-center gap-4 shadow-sm border border-slate-100 transition-all"
           >
             <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center flex-shrink-0">
-              <BookOpen className="w-8 h-8 text-blue-500" />
+              < BookOpen className="w-8 h-8 text-blue-500" />
             </div>
             <div className="flex-1 text-left">
               <h4 className="font-bold text-slate-800 mb-1 text-sm">{lastReadBook?.title || "Alisher Navoiy: Hayoti..."}</h4>
@@ -317,7 +317,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </button>
           </div>
           <div className="bg-white rounded-[32px] p-2 shadow-sm border border-slate-100">
-            {tasks.slice(0, 2).map((task, i) => (
+            {tasks.slice(0, 3).map((task, i) => (
               <motion.div 
                 key={i} 
                 whileTap={{ scale: 0.98 }}
@@ -520,7 +520,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         value={textSubmission}
                         onChange={(e) => setTextSubmission(e.target.value)}
                         placeholder="Javobingizni yozing..."
-                        className="w-full p-4 rounded-2xl bg-slate-50 border border-slate-100 outline-none h-24 resize-none text-sm"
+                        className="w-full p-4 rounded-2xl bg-slate-50 border border-slate-100 outline-none h-24 resize-none text-sm text-slate-800"
                       />
                     </motion.div>
                   )}

@@ -10,7 +10,8 @@ export const defaultBooks: Book[] = [
     hasAudio: true, 
     progress: 80, 
     cover: "https://api.dicebear.com/7.x/initials/svg?seed=AN&backgroundColor=4A90E2",
-    pdfUrl: "https://www.unicef.org/uzbekistan/media/3161/file/Uzbekistan-Early-Childhood-Development-Strategy-2019-2024-UZB.pdf",
+    pdfUrl: "data:application/pdf;base64,JVBERi0xLjcKJeLjz9MKMSAwIG9iago8PAovVHlwZSAvQ2F0YWxvZwovUGFnZXMgMiAwIFIKPj4KZW5kb2JqCjIgMCBvYmoKPDwKL1R5cGUgL1BhZ2VzCi9Db3VudCAxCi9LaWRzIFszIDAgUl0KPj4KZW5kb2JqCjMgMCBvYmoKPDwKL1R5cGUgL1BhZ2UKL1BhcmVudCAyIDAgUgovTWVkaWFCb3ggWzAgMCA2MTIgNzkyXQovUmVzb3VyY2VzIDw8Pj4KL0NvbnRlbnRzIDQgMCBSCj4+CmVuZG9iago0IDAgb2JqCjw8Ci9MZW5ndGggNDQKPj4Kc3RyZWFtCkJUCi9GMSAxMiBUZgoxMDAgNzAwIFRkCihIZWxsbywgV29ybGQhKSBUagpFVAplbmRzdHJlYW0KZW5kb2JqCnhyZWYKMCA1CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAxNSAwMDAwMCBuIAowMDAwMDAwMDY4IDAwMDAwIG4gCjAwMDAwMDAxMjAgMDAwMDAgbiAKMDAwMDAwMDIyOSAwMDAwMCBuIAp0cmFpbGVyCjw8Ci9TaXplIDUKL1Jvb3QgMSAwIFIKPj4Kc3RhcnR4cmVmCjMyMgolJUVPRgo=",
+    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
     task: "Navoiy hikmatlaridan 5 tasini yodlash"
   },
   { 
@@ -22,7 +23,8 @@ export const defaultBooks: Book[] = [
     hasAudio: true, 
     progress: 0, 
     cover: "https://api.dicebear.com/7.x/initials/svg?seed=KO&backgroundColor=FF7043",
-    pdfUrl: "https://www.unicef.org/uzbekistan/media/3161/file/Uzbekistan-Early-Childhood-Development-Strategy-2019-2024-UZB.pdf",
+    pdfUrl: "https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/web/compressed.tracemonkey-pldi-09.pdf",
+    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
     task: "Sayyoralar haqida ma'lumot to'plash"
   },
   { 
@@ -34,7 +36,8 @@ export const defaultBooks: Book[] = [
     hasAudio: true, 
     progress: 45, 
     cover: "https://api.dicebear.com/7.x/initials/svg?seed=ZQ&backgroundColor=26A69A",
-    pdfUrl: "https://www.unicef.org/uzbekistan/media/3161/file/Uzbekistan-Early-Childhood-Development-Strategy-2019-2024-UZB.pdf",
+    pdfUrl: "https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/web/compressed.tracemonkey-pldi-09.pdf",
+    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
     task: "Ertak bo'yicha test yechish"
   },
   { 
@@ -46,7 +49,8 @@ export const defaultBooks: Book[] = [
     hasAudio: true, 
     progress: 10, 
     cover: "https://api.dicebear.com/7.x/initials/svg?seed=EN&backgroundColor=42A5F5",
-    pdfUrl: "https://www.unicef.org/uzbekistan/media/3161/file/Uzbekistan-Early-Childhood-Development-Strategy-2019-2024-UZB.pdf",
+    pdfUrl: "https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/web/compressed.tracemonkey-pldi-09.pdf",
+    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
     task: "Alifboni o'rganish"
   },
   { 
@@ -58,7 +62,7 @@ export const defaultBooks: Book[] = [
     hasAudio: false, 
     progress: 100, 
     cover: "https://api.dicebear.com/7.x/initials/svg?seed=ZK&backgroundColor=FFA726",
-    pdfUrl: "https://www.unicef.org/uzbekistan/media/3161/file/Uzbekistan-Early-Childhood-Development-Strategy-2019-2024-UZB.pdf",
+    pdfUrl: "https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/web/compressed.tracemonkey-pldi-09.pdf",
     task: "Mantiqiy savollarga javob berish"
   },
   { 
@@ -70,7 +74,8 @@ export const defaultBooks: Book[] = [
     hasAudio: true, 
     progress: 0, 
     cover: "https://api.dicebear.com/7.x/initials/svg?seed=HO&backgroundColor=66BB6A",
-    pdfUrl: "https://www.unicef.org/uzbekistan/media/3161/file/Uzbekistan-Early-Childhood-Development-Strategy-2019-2024-UZB.pdf",
+    pdfUrl: "https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/web/compressed.tracemonkey-pldi-09.pdf",
+    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3",
     task: "Hayvonlarni soyasidan topish"
   },
 ];

@@ -8,8 +8,10 @@ import { BottomNav } from './components/BottomNav';
 import { AdminPanel } from './components/AdminPanel';
 import { SplashScreen } from './components/SplashScreen';
 import { PaymentModal } from './components/PaymentModal';
+import { Login } from './components/Login';
 import { defaultBooks } from './constants';
 import { Book, HomeworkSubmission } from './types';
+import { cn } from './lib/utils';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');
@@ -32,6 +34,9 @@ export default function App() {
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [customBooks, setCustomBooks] = useState<Book[]>([]);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    return localStorage.getItem('isLoggedIn') === 'true';
+  });
   const [submissions, setSubmissions] = useState<HomeworkSubmission[]>(() => {
     const saved = localStorage.getItem('submissions');
     return saved ? JSON.parse(saved) : [];
@@ -61,6 +66,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('isPremium', String(isPremium));
   }, [isPremium]);
+
+  useEffect(() => {
+    localStorage.setItem('isLoggedIn', String(isLoggedIn));
+  }, [isLoggedIn]);
 
   const clickCount = useRef(0);
   const lastClickTime = useRef(0);
@@ -151,7 +160,17 @@ export default function App() {
         />
       );
       case 'tests': return <Tests />;
-      case 'profile': return <Profile userName={userName} setUserName={setUserName} userAvatar={userAvatar} setUserAvatar={setUserAvatar} isPremium={isPremium} setIsPremium={setIsPremium} />;
+      case 'profile': return (
+        <Profile 
+          userName={userName} 
+          setUserName={setUserName} 
+          userAvatar={userAvatar} 
+          setUserAvatar={setUserAvatar} 
+          isPremium={isPremium} 
+          setIsPremium={setIsPremium}
+          onLogout={() => setIsLoggedIn(false)}
+        />
+      );
       default: return <Dashboard userName={userName} userAvatar={userAvatar} isPremium={isPremium} setIsPremium={setIsPremium} onNavigate={handleNavigate} onAdminTrigger={handleAdminTrigger} />;
     }
   };
@@ -162,27 +181,31 @@ export default function App() {
         {isInitialLoading && <SplashScreen />}
       </AnimatePresence>
 
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: isInitialLoading ? 0 : 1 }}
-        transition={{ duration: 0.5 }}
-        className="flex-1 flex flex-col"
-      >
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -10 }}
-            transition={{ duration: 0.2 }}
-            className="flex-1 flex flex-col"
-          >
-            {renderContent()}
-          </motion.div>
-        </AnimatePresence>
-        
-        <BottomNav activeTab={activeTab} setActiveTab={handleNavigate} />
-      </motion.div>
+      {!isLoggedIn && !isInitialLoading ? (
+        <Login onLogin={() => setIsLoggedIn(true)} />
+      ) : (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: isInitialLoading ? 0 : 1 }}
+          transition={{ duration: 0.5 }}
+          className="flex-1 flex flex-col"
+        >
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -10 }}
+              transition={{ duration: 0.2 }}
+              className="flex-1 flex flex-col"
+            >
+              {renderContent()}
+            </motion.div>
+          </AnimatePresence>
+          
+          <BottomNav activeTab={activeTab} setActiveTab={handleNavigate} />
+        </motion.div>
+      )}
 
       <AnimatePresence>
         {isAdminOpen && (
